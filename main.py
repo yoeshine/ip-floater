@@ -2,6 +2,7 @@ import json
 import urllib.request
 import threading
 import socket
+import os
 from datetime import datetime
 
 from kivy.app import App
@@ -13,9 +14,39 @@ from kivy.core.window import Window
 from kivy.clock import Clock
 from kivy.utils import platform
 from kivy.metrics import dp
+from kivy.core.text import LabelBase
 
 API_FIELDS = 'status,message,country,regionName,city,isp,org,as,query,hosting,proxy,timezone,offset'
 
+# ===================== font setup =====================
+
+def _setup_cjk_font():
+    """Try Android system fonts first (no bundled font needed)."""
+    if platform == 'android':
+        candidates = [
+            '/system/fonts/NotoSansCJK-Regular.ttc',
+            '/system/fonts/DroidSansFallback.ttf',
+            '/system/fonts/NotoSansSC-Regular.otf',
+            '/system/fonts/NotoSansMonoCJKsc-Regular.otf',
+            '/system/fonts/FZLanTingHeiS-R-GB.ttf',
+            '/system/fonts/Miui-Regular.ttf',
+            '/data/data/org.test.ipfloater/files/app/font_sc.ttf',
+        ]
+        for fp in candidates:
+            if os.path.exists(fp):
+                LabelBase.register(name='CJK', fn_regular=fp)
+                return 'CJK'
+    # Desktop: look for a bundled font file
+    for fname in ('NotoSansSC_small.ttf', 'font_sc.ttf', 'NotoSansSC.ttf'):
+        bundled = os.path.join(os.path.dirname(os.path.abspath(__file__)), fname)
+        if os.path.exists(bundled):
+            LabelBase.register(name='CJK', fn_regular=bundled)
+            return 'CJK'
+    return None
+
+FONT_NAME = _setup_cjk_font()
+
+# ===================== network / data helpers =====================
 
 def get_geo_info():
     for url in [
@@ -96,6 +127,7 @@ def get_timezone_info():
 
 BG = (0.118, 0.118, 0.180, 1)
 BAR_BG = (0.192, 0.196, 0.267, 1)
+BTN_BG = (0.157, 0.157, 0.239, 1)
 TEXT = (0.804, 0.839, 0.957, 1)
 ACCENT = (0.537, 0.706, 0.980, 1)
 GREEN = (0.651, 0.890, 0.631, 1)
@@ -104,25 +136,32 @@ RED = (0.953, 0.545, 0.659, 1)
 DIM = (0.424, 0.443, 0.529, 1)
 
 
+def _font(size):
+    kw = {'font_size': size}
+    if FONT_NAME:
+        kw['font_name'] = FONT_NAME
+    return kw
+
+
 class InfoRow(BoxLayout):
     def __init__(self, key_text, val_text='加载中...', val_color=ACCENT, **kw):
-        super().__init__(orientation='horizontal', size_hint_y=None, height=dp(38), **kw)
+        super().__init__(orientation='horizontal', size_hint_y=None, height=dp(42), **kw)
         self.key_label = Label(
             text=key_text,
             color=DIM,
-            font_size=dp(14),
             size_hint_x=0.30,
             halign='right',
             valign='middle',
+            **_font(dp(15)),
         )
         self.key_label.bind(size=self.key_label.setter('text_size'))
         self.val_label = Label(
             text=val_text,
             color=val_color,
-            font_size=dp(16),
             size_hint_x=0.70,
             halign='left',
             valign='middle',
+            **_font(dp(17)),
         )
         self.val_label.bind(size=self.val_label.setter('text_size'))
         self.add_widget(self.key_label)
@@ -142,65 +181,66 @@ class IPFloaterApp(App):
         if is_android:
             Window.fullscreen = 'auto'
         else:
-            Window.size = (420, 460)
+            Window.size = (440, 520)
+            Window.topmost = True
 
         Window.clearcolor = BG
 
         root = FloatLayout()
+        from kivy.graphics import Color, Rectangle
         with root.canvas.before:
-            from kivy.graphics import Color, Rectangle
             Color(*BG)
-            self._bg_rect = Rectangle(pos=root.pos, size=root.size)
-        root.bind(pos=lambda i, v: setattr(self._bg_rect, 'pos', v),
-                  size=lambda i, v: setattr(self._bg_rect, 'size', v))
+            self._bg = Rectangle(pos=root.pos, size=root.size)
+        root.bind(pos=lambda i, v: setattr(self._bg, 'pos', v),
+                  size=lambda i, v: setattr(self._bg, 'size', v))
 
         # --- title bar ---
-        bar_height = dp(48)
+        bar_h = dp(50)
         title_bar = BoxLayout(
             orientation='horizontal',
             size_hint=(1, None),
-            height=bar_height,
+            height=bar_h,
             pos_hint={'top': 1},
         )
         with title_bar.canvas.before:
-            from kivy.graphics import Color as Col, Rectangle as Rect
-            Col(*BAR_BG)
-            self._bar_rect = Rect(pos=title_bar.pos, size=title_bar.size)
-        title_bar.bind(pos=lambda i, v: setattr(self._bar_rect, 'pos', v),
-                       size=lambda i, v: setattr(self._bar_rect, 'size', v))
+            Color(*BAR_BG)
+            self._bar_bg = Rectangle(pos=title_bar.pos, size=title_bar.size)
+        title_bar.bind(pos=lambda i, v: setattr(self._bar_bg, 'pos', v),
+                       size=lambda i, v: setattr(self._bar_bg, 'size', v))
 
         title_lbl = Label(
-            text=' IP 信息',
+            text='IP 信息',
             color=TEXT,
-            font_size=dp(16),
-            bold=True,
             halign='left',
             valign='middle',
-            size_hint_x=0.65,
+            padding=(dp(16), 0),
+            size_hint_x=0.6,
+            bold=True,
+            **_font(dp(18)),
         )
         title_lbl.bind(size=title_lbl.setter('text_size'))
 
-        refresh_btn = Button(
+        refresh_icon = Button(
             text='↻',
             color=TEXT,
-            font_size=dp(22),
             size_hint_x=None,
-            width=dp(50),
+            width=dp(56),
+            font_size=dp(26),
             background_normal='',
             background_color=BAR_BG,
         )
-        refresh_btn.bind(on_release=lambda _: self.refresh_network())
+        refresh_icon.bind(on_release=lambda _: self.refresh_network())
 
         title_bar.add_widget(title_lbl)
-        title_bar.add_widget(refresh_btn)
+        title_bar.add_widget(refresh_icon)
         root.add_widget(title_bar)
 
-        # --- content ---
+        # --- info rows ---
         self.content = BoxLayout(
             orientation='vertical',
             pos_hint={'top': 1},
-            padding=(dp(16), dp(10), dp(16), dp(10)),
-            spacing=dp(1),
+            padding=(dp(16), dp(12), dp(16), dp(12)),
+            spacing=dp(2),
             size_hint=(1, None),
         )
         self.content.bind(minimum_height=self.content.setter('height'))
@@ -226,6 +266,20 @@ class IPFloaterApp(App):
         self.content.bind(height=lambda *_: reposition())
         title_bar.bind(pos=lambda *_: reposition())
         root.add_widget(self.content)
+
+        # --- refresh button ---
+        refresh_btn = Button(
+            text='刷新网络信息',
+            color=TEXT,
+            size_hint=(0.9, None),
+            height=dp(48),
+            pos_hint={'center_x': 0.5, 'y': 0.02},
+            **_font(dp(16)),
+            background_normal='',
+            background_color=BTN_BG,
+        )
+        refresh_btn.bind(on_release=lambda _: self.refresh_network())
+        root.add_widget(refresh_btn)
 
         self.update_static()
         self.refresh_network()
