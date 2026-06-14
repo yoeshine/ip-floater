@@ -13,6 +13,7 @@ android.api = 34
 android.minapi = 21
 android.ndk = 25b
 android.sdk = 34
+android.accept_sdk_license = True
 android.arch = arm64-v8a
 p4a.branch = develop
 
