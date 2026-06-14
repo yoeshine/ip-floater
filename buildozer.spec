@@ -5,7 +5,7 @@ package.domain = org.test
 source.dir = .
 source.include_exts = py
 version = 1.0
-requirements = python3,kivy==2.3.1,openssl,pyjnius,androidx
+requirements = python3,kivy==2.3.1,openssl,pyjnius
 orientation = portrait
 fullscreen = 1
 android.permissions = INTERNET,ACCESS_NETWORK_STATE,SYSTEM_ALERT_WINDOW,FOREGROUND_SERVICE,POST_NOTIFICATIONS
