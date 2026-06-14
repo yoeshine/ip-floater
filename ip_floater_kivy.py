@@ -9,15 +9,13 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
-from kivy.uix.scrollview import ScrollView
 from kivy.core.window import Window
 from kivy.clock import Clock
-from kivy.graphics import Color, Rectangle
 from kivy.utils import platform
+from kivy.metrics import dp
 
 API_FIELDS = 'status,message,country,regionName,city,isp,org,as,query,hosting,proxy,timezone,offset'
 
-# ===================== network / data helpers =====================
 
 def get_geo_info():
     for url in [
@@ -36,7 +34,6 @@ def get_geo_info():
 def classify_ip_type(data):
     if not data:
         return '未知'
-
     hosting = data.get('hosting', False)
     proxy = data.get('proxy', False)
     org = (data.get('org', '') or '').lower()
@@ -97,26 +94,24 @@ def get_timezone_info():
     return tz_name, tz_offset, offset
 
 
-# ===================== Kivy UI =====================
-
-BG = (0.118, 0.118, 0.180, 1)       # #1e1e2e
-BAR_BG = (0.192, 0.196, 0.267, 1)   # #313244
-TEXT = (0.804, 0.839, 0.957, 1)     # #cdd6f4
-ACCENT = (0.537, 0.706, 0.980, 1)   # #89b4fa
-GREEN = (0.651, 0.890, 0.631, 1)    # #a6e3a1
-YELLOW = (0.976, 0.886, 0.686, 1)   # #f9e2af
-RED = (0.953, 0.545, 0.659, 1)      # #f38ba8
-DIM = (0.424, 0.443, 0.529, 1)      # #6c7086
+BG = (0.118, 0.118, 0.180, 1)
+BAR_BG = (0.192, 0.196, 0.267, 1)
+TEXT = (0.804, 0.839, 0.957, 1)
+ACCENT = (0.537, 0.706, 0.980, 1)
+GREEN = (0.651, 0.890, 0.631, 1)
+YELLOW = (0.976, 0.886, 0.686, 1)
+RED = (0.953, 0.545, 0.659, 1)
+DIM = (0.424, 0.443, 0.529, 1)
 
 
 class InfoRow(BoxLayout):
     def __init__(self, key_text, val_text='加载中...', val_color=ACCENT, **kw):
-        super().__init__(orientation='horizontal', size_hint_y=None, height=26, **kw)
+        super().__init__(orientation='horizontal', size_hint_y=None, height=dp(38), **kw)
         self.key_label = Label(
             text=key_text,
             color=DIM,
-            font_size=12,
-            size_hint_x=0.32,
+            font_size=dp(14),
+            size_hint_x=0.30,
             halign='right',
             valign='middle',
         )
@@ -124,8 +119,8 @@ class InfoRow(BoxLayout):
         self.val_label = Label(
             text=val_text,
             color=val_color,
-            font_size=12,
-            size_hint_x=0.68,
+            font_size=dp(16),
+            size_hint_x=0.70,
             halign='left',
             valign='middle',
         )
@@ -143,90 +138,72 @@ class IPFloaterApp(App):
     def build(self):
         self.title = 'IP Info'
 
-        Window.size = (320, 340)
-        Window.clearcolor = BG
-        if platform == 'android':
+        is_android = platform == 'android'
+        if is_android:
             Window.fullscreen = 'auto'
+        else:
+            Window.size = (420, 460)
 
-        self.root_widget = FloatLayout()
+        Window.clearcolor = BG
 
-        with self.root_widget.canvas.before:
+        root = FloatLayout()
+        with root.canvas.before:
+            from kivy.graphics import Color, Rectangle
             Color(*BG)
-            self.bg_rect = Rectangle(pos=self.root_widget.pos, size=self.root_widget.size)
-        self.root_widget.bind(pos=self._update_bg, size=self._update_bg)
+            self._bg_rect = Rectangle(pos=root.pos, size=root.size)
+        root.bind(pos=lambda i, v: setattr(self._bg_rect, 'pos', v),
+                  size=lambda i, v: setattr(self._bg_rect, 'size', v))
 
         # --- title bar ---
+        bar_height = dp(48)
         title_bar = BoxLayout(
             orientation='horizontal',
             size_hint=(1, None),
-            height=36,
+            height=bar_height,
             pos_hint={'top': 1},
         )
         with title_bar.canvas.before:
-            Color(*BAR_BG)
-            self.title_rect = Rectangle(pos=title_bar.pos, size=title_bar.size)
-        title_bar.bind(pos=self._update_title_rect, size=self._update_title_rect)
+            from kivy.graphics import Color as Col, Rectangle as Rect
+            Col(*BAR_BG)
+            self._bar_rect = Rect(pos=title_bar.pos, size=title_bar.size)
+        title_bar.bind(pos=lambda i, v: setattr(self._bar_rect, 'pos', v),
+                       size=lambda i, v: setattr(self._bar_rect, 'size', v))
 
         title_lbl = Label(
-            text='  IP 信息',
+            text=' IP 信息',
             color=TEXT,
-            font_size=13,
+            font_size=dp(16),
             bold=True,
             halign='left',
             valign='middle',
-            size_hint_x=0.5,
+            size_hint_x=0.65,
         )
         title_lbl.bind(size=title_lbl.setter('text_size'))
 
         refresh_btn = Button(
             text='↻',
             color=TEXT,
-            font_size=16,
+            font_size=dp(22),
             size_hint_x=None,
-            width=40,
+            width=dp(50),
             background_normal='',
             background_color=BAR_BG,
         )
         refresh_btn.bind(on_release=lambda _: self.refresh_network())
 
-        min_btn = Button(
-            text='─',
-            color=TEXT,
-            font_size=16,
-            size_hint_x=None,
-            width=40,
-            background_normal='',
-            background_color=BAR_BG,
-        )
-        self._content_visible = True
-        min_btn.bind(on_release=lambda _: self.toggle_content())
-
-        close_btn = Button(
-            text='✕',
-            color=TEXT,
-            font_size=14,
-            size_hint_x=None,
-            width=40,
-            background_normal='',
-            background_color=BAR_BG,
-        )
-        close_btn.bind(on_release=lambda _: self.stop())
-
         title_bar.add_widget(title_lbl)
         title_bar.add_widget(refresh_btn)
-        title_bar.add_widget(min_btn)
-        title_bar.add_widget(close_btn)
-        self.root_widget.add_widget(title_bar)
+        root.add_widget(title_bar)
 
-        # --- content area ---
-        self.content_area = BoxLayout(
+        # --- content ---
+        self.content = BoxLayout(
             orientation='vertical',
             pos_hint={'top': 1},
-            padding=(14, 8, 14, 8),
-            spacing=1,
+            padding=(dp(16), dp(10), dp(16), dp(10)),
+            spacing=dp(1),
             size_hint=(1, None),
         )
-        self.content_area.bind(minimum_height=self.content_area.setter('height'))
+        self.content.bind(minimum_height=self.content.setter('height'))
 
         self.rows = {}
         fields = [
@@ -242,32 +219,19 @@ class IPFloaterApp(App):
         for key, val in fields:
             row = InfoRow(key, val)
             self.rows[key] = row
-            self.content_area.add_widget(row)
+            self.content.add_widget(row)
 
-        # reposition content below title bar
-        def adjust_content(*_):
-            self.content_area.y = title_bar.y - self.content_area.height
-        self.content_area.bind(height=lambda *_: adjust_content())
-        title_bar.bind(pos=lambda *_: adjust_content())
+        def reposition(*_):
+            self.content.y = title_bar.y - self.content.height
+        self.content.bind(height=lambda *_: reposition())
+        title_bar.bind(pos=lambda *_: reposition())
+        root.add_widget(self.content)
 
-        self.root_widget.add_widget(self.content_area)
-
-        # initial data
         self.update_static()
         self.refresh_network()
         Clock.schedule_interval(self.refresh_time, 1)
 
-        return self.root_widget
-
-    def _update_bg(self, instance, value):
-        self.bg_rect.pos = instance.pos
-        self.bg_rect.size = instance.size
-
-    def _update_title_rect(self, instance, value):
-        self.title_rect.pos = instance.pos
-        self.title_rect.size = instance.size
-
-    # --- data updates ---
+        return root
 
     def update_static(self):
         self.rows['计算机名'].set_value(get_computer_name())
@@ -275,8 +239,7 @@ class IPFloaterApp(App):
         self.rows['时区'].set_value(f'{tz_name} ({tz_offset})')
 
     def refresh_time(self, dt):
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        self.rows['当前时间'].set_value(now)
+        self.rows['当前时间'].set_value(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
     def refresh_network(self):
         def fetch():
@@ -303,7 +266,6 @@ class IPFloaterApp(App):
             else:
                 tc = ACCENT
             self.rows['IP 类型'].set_value(ip_type, tc)
-
             self.rows['运营商'].set_value(isp)
 
             ip_tz = data.get('timezone', '')
@@ -319,26 +281,14 @@ class IPFloaterApp(App):
         if local_offset is None or not ip_tz_name or ip_offset_sec is None:
             self.rows['时区一致性'].set_value('无法判断')
             return
-
         local_h = int(local_offset.total_seconds() / 3600)
         ip_h = int(ip_offset_sec / 3600)
-
         if local_h == ip_h:
             self.rows['时区一致性'].set_value(f'一致 ({ip_tz_name})', GREEN)
         else:
             self.rows['时区一致性'].set_value(
                 f'不一致 → {ip_tz_name} (UTC{ip_h:+d})', RED
             )
-
-    def toggle_content(self):
-        if self._content_visible:
-            self.content_area.opacity = 0
-            self.content_area.height = 0
-        else:
-            self.content_area.opacity = 1
-            rows_height = len(self.rows) * 28 + 16
-            self.content_area.height = rows_height
-        self._content_visible = not self._content_visible
 
 
 if __name__ == '__main__':
