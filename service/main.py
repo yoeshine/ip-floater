@@ -25,7 +25,7 @@ Resources = autoclass('android.content.res.Resources')
 Context = autoclass('android.content.Context')
 Intent = autoclass('android.content.Intent')
 PendingIntent = autoclass('android.app.PendingIntent')
-NotificationCompat = autoclass('androidx.core.app.NotificationCompat')
+Notification = autoclass('android.app.Notification')
 NotificationChannel = autoclass('android.app.NotificationChannel')
 NotificationManager = autoclass('android.app.NotificationManager')
 Build = autoclass('android.os.Build')
@@ -350,14 +350,14 @@ def start_service():
 
     # build notification
     if Build.VERSION.SDK_INT >= 26:
-        nb = NotificationCompat.Builder(Activity, 'ip_floater')
+        nb = Notification.Builder(Activity, 'ip_floater')
     else:
-        nb = NotificationCompat.Builder(Activity)
+        nb = Notification.Builder(Activity)
     nb.setContentTitle('IP Floater')
     nb.setContentText('IP 信息悬浮窗运行中')
     nb.setSmallIcon(Activity.getApplicationInfo().icon)
     nb.setOngoing(True)
-    nb.setPriority(NotificationCompat.PRIORITY_LOW)
+    nb.setPriority(Notification.PRIORITY_LOW)
     Activity.startForeground(1, nb.build())
 
     # create overlay
