@@ -26,32 +26,9 @@ jobs:
             libltdl-dev git
           pip3 install --user buildozer cython virtualenv
 
-      - name: Setup Android SDK
-        run: |
-          # Install Android cmdline-tools
-          SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
-          rm -rf $SDK_ROOT
-          mkdir -p $SDK_ROOT/cmdline-tools
-          cd /tmp
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q commandlinetools-linux-11076708_latest.zip -d $SDK_ROOT/cmdline-tools
-          mv $SDK_ROOT/cmdline-tools/cmdline-tools $SDK_ROOT/cmdline-tools/latest
-          # Accept licenses
-          mkdir -p $SDK_ROOT/licenses
-          printf "\nd56f5187479451eabf01fb78af6dfcb131a6481e" > $SDK_ROOT/licenses/android-sdk-license
-          printf "\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > $SDK_ROOT/licenses/android-sdk-license-2
-          # Install required SDK packages
-          yes | $SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_ROOT \
-            "platform-tools" "platforms;android-33" "build-tools;33.0.0"
-          # buildozer expects old tools/bin/sdkmanager path
-          mkdir -p $SDK_ROOT/tools/bin
-          ln -sf $SDK_ROOT/cmdline-tools/latest/bin/sdkmanager $SDK_ROOT/tools/bin/sdkmanager
-
       - name: Build APK
         run: |
           export PATH=$PATH:/home/runner/.local/bin
-          export ANDROID_HOME=$HOME/.buildozer/android/platform/android-sdk
-          export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
           buildozer android debug
 
       - name: Upload APK

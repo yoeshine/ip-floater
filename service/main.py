@@ -71,7 +71,7 @@ def classify_ip_type(data):
     combined = f'{org} {isp} {as_name}'
 
     vpn_kw = ['vpn', 'proxy', 'tor', 'relay', 'v2ray', 'xray', 'shadowsocks',
-              'trojan', 'hysteria', 'tunnel']
+              'trojan', 'hysteria', 'tunnel', '翻墙', '机场']
     for kw in vpn_kw:
         if kw in combined:
             return '代理/VPN 节点'
@@ -81,21 +81,23 @@ def classify_ip_type(data):
     cloud_kw = ['amazon', 'aws', 'google', 'microsoft', 'azure', 'alibaba',
                 'aliyun', 'tencent', 'huawei', 'digitalocean', 'vultr',
                 'linode', 'oracle cloud', 'cloudflare', 'cdn',
-                'compute', 'cloud', 'server', 'hosting', 'idc']
+                'compute', 'cloud', 'server', 'hosting', 'idc', '机房租用']
     for kw in cloud_kw:
         if kw in combined:
             return 'IDC / 数据中心'
     if hosting:
         return 'IDC / 数据中心'
 
-    enterprise_kw = ['enterprise', 'business', 'corporate', 'dedicated']
+    enterprise_kw = ['enterprise', 'business', 'corporate', 'dedicated',
+                     '专线', '企业', '集团']
     for kw in enterprise_kw:
         if kw in combined:
             return '企业专线'
 
     residential_kw = ['telecom', 'unicom', 'mobile', 'china telecom',
                       'broadband', 'cable', 'dsl', 'ftth', 'fiber',
-                      'residential', 'chinanet']
+                      'residential', 'chinanet',
+                      '中国电信', '中国联通', '中国移动', '宽带', '电信', '联通', '移动']
     for kw in residential_kw:
         if kw in combined:
             return '家庭宽带'
@@ -115,9 +117,7 @@ def get_tz_info():
     offset = now.utcoffset()
     if offset is not None:
         hours = offset.total_seconds() / 3600
-        tz_offset = 'UTC{:.0f}'.format(hours)
-        if hours >= 0:
-            tz_offset = 'UTC+' + tz_offset.lstrip('+')
+        tz_offset = 'UTC{0:+.0f}'.format(hours)
     else:
         tz_offset = ''
     return tz_name, tz_offset, offset
@@ -161,18 +161,35 @@ def create_overlay():
     root.setPadding(dp2px(12), dp2px(6), dp2px(12), dp2px(6))
     root.setBackgroundColor(int(BG_COLOR))
 
-    # title bar (draggable)
+     # title bar (draggable) — horizontal layout
+    title_bar = LinearLayout(Activity)
+    title_bar.setOrientation(LinearLayout.HORIZONTAL)
+    title_bar.setBackgroundColor(int(BAR_COLOR))
+    title_bar_lp = LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, dp2px(36)
+    )
+
     title = TextView(Activity)
     title.setText('IP 信息')
     title.setTextColor(int(TEXT_COLOR))
     title.setTextSize(14.0)
     title.setPadding(dp2px(6), dp2px(6), 0, dp2px(6))
-    title.setBackgroundColor(int(BAR_COLOR))
     title.setGravity(Gravity.CENTER_VERTICAL)
-    title_lp = LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT, dp2px(36)
+    title_lp2 = LinearLayout.LayoutParams(
+        0, ViewGroup.LayoutParams.MATCH_PARENT, 1.0
     )
-    root.addView(title, title_lp)
+    title_bar.addView(title, title_lp2)
+
+    refresh_btn = TextView(Activity)
+    refresh_btn.setText('↻')
+    refresh_btn.setTextColor(int(TEXT_COLOR))
+    refresh_btn.setTextSize(18.0)
+    refresh_btn.setGravity(Gravity.CENTER)
+    refresh_btn.setPadding(dp2px(4), 0, dp2px(8), 0)
+    btn_lp = LinearLayout.LayoutParams(dp2px(40), ViewGroup.LayoutParams.MATCH_PARENT)
+    title_bar.addView(refresh_btn, btn_lp)
+
+    root.addView(title_bar, title_bar_lp)
 
     # info rows
     for key in LABEL_KEYS:
@@ -228,7 +245,13 @@ def create_overlay():
             return False
 
     handler = TouchHandler()
-    title.setOnTouchListener(handler)
+    title_bar.setOnTouchListener(handler)
+
+    # refresh button click
+    class RefreshClickHandler:
+        def onClick(self, view):
+            refresh_data()
+    refresh_btn.setOnClickListener(RefreshClickHandler())
 
     # window layout params
     display = wm.getDefaultDisplay()
