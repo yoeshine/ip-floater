@@ -43,6 +43,9 @@ jobs:
           # Install required SDK packages
           yes | $SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_ROOT \
             "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+          # buildozer expects old tools/bin/sdkmanager path
+          mkdir -p $SDK_ROOT/tools/bin
+          ln -sf $SDK_ROOT/cmdline-tools/latest/bin/sdkmanager $SDK_ROOT/tools/bin/sdkmanager
 
       - name: Build APK
         run: |
